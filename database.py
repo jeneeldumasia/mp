@@ -1,41 +1,36 @@
 # database.py
-
 import sqlite3
 import json
 from datetime import datetime
-from settings import DB_NAME
 
 class Database:
-    # ... (previous methods __init__, create_tables, get_menu_items, save_sale remain the same) ...
     def __init__(self):
-        try:
-            self.conn = sqlite3.connect(DB_NAME, check_same_thread=False)
-            self.create_tables()
-        except sqlite3.Error as e:
-            print(f"Database connection error: {e}")
-            self.conn = None
+        self.conn = sqlite3.connect("shop_data.db", check_same_thread=False)
+        self.create_tables()
 
     def create_tables(self):
-        if not self.conn:
-            return
+        if not self.conn: return
         try:
             with self.conn:
-                self.conn.execute("""
-                    CREATE TABLE IF NOT EXISTS menu (
-                        id INTEGER PRIMARY KEY,
-                        name TEXT NOT NULL UNIQUE,
-                        price REAL NOT NULL
-                    )
-                """)
-                self.conn.execute("""
-                    CREATE TABLE IF NOT EXISTS sales (
-                        id INTEGER PRIMARY KEY,
-                        timestamp TEXT NOT NULL,
-                        items TEXT NOT NULL,
-                        total_amount REAL NOT NULL,
-                        payment_method TEXT NOT NULL
-                    )
-                """)
+                # Menu and Sales tables remain the same
+                self.conn.execute("CREATE TABLE IF NOT EXISTS menu (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, price REAL NOT NULL)")
+                self.conn.execute("CREATE TABLE IF NOT EXISTS sales (id INTEGER PRIMARY KEY, timestamp TEXT NOT NULL, items TEXT NOT NULL, total_amount REAL NOT NULL, payment_method TEXT NOT NULL)")
+                
+                # Expanded config table
+                self.conn.execute("CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+
+                # --- ADDED: Seed all default settings ---
+                default_configs = {
+                    'shop_name': 'Misty Pavbhaji',
+                    'password': '1234',
+                    'gst_rate': '5.0',
+                    'currency_symbol': '₹',
+                    'bill_footer': 'Thank you! Visit Again!'
+                }
+                for key, value in default_configs.items():
+                    self.conn.execute("INSERT OR IGNORE INTO config (key, value) VALUES (?, ?)", (key, value))
+
+                # Populate default menu items if empty
                 cursor = self.conn.cursor()
                 cursor.execute("SELECT COUNT(*) FROM menu")
                 if cursor.fetchone()[0] == 0:
@@ -44,9 +39,30 @@ class Database:
         except sqlite3.Error as e:
             print(f"Error creating tables: {e}")
 
+    def get_config_value(self, key, default_value=None):
+        try:
+            with self.conn:
+                cursor = self.conn.cursor()
+                cursor.execute("SELECT value FROM config WHERE key = ?", (key,))
+                result = cursor.fetchone()
+                return result[0] if result else default_value
+        except sqlite3.Error as e:
+            print(f"Error fetching config value for {key}: {e}")
+            return default_value
+
+    def set_config_value(self, key, value):
+        try:
+            with self.conn:
+                self.conn.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, value))
+            return True
+        except sqlite3.Error as e:
+            print(f"Error setting config value for {key}: {e}")
+            return False
+            
+    # ... (all other database methods remain the same)
     def get_menu_items(self):
-        if not self.conn:
-            return []
+        # ...
+        if not self.conn: return []
         try:
             with self.conn:
                 cursor = self.conn.cursor()
@@ -57,8 +73,8 @@ class Database:
             return []
 
     def save_sale(self, bill_details):
-        if not self.conn:
-            return False
+        # ...
+        if not self.conn: return False
         try:
             with self.conn:
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -73,8 +89,8 @@ class Database:
             return False
 
     def get_sales_for_date(self, date_str):
-        if not self.conn:
-            return []
+        # ...
+        if not self.conn: return []
         try:
             with self.conn:
                 cursor = self.conn.cursor()
@@ -87,11 +103,9 @@ class Database:
             print(f"Error fetching sales for date {date_str}: {e}")
             return []
             
-    # --- NEW METHOD ---
     def get_sales_for_date_range(self, start_date, end_date):
-        """Fetches sales records between two dates (inclusive)."""
-        if not self.conn:
-            return []
+        # ...
+        if not self.conn: return []
         try:
             with self.conn:
                 cursor = self.conn.cursor()
@@ -105,5 +119,5 @@ class Database:
             return []
 
     def close(self):
-        if self.conn:
-            self.conn.close()
+        # ...
+        if self.conn: self.conn.close()
